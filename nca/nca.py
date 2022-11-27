@@ -27,31 +27,33 @@ def percieve(state_grid: ti.template()):
     sobel_y_filter(state_grid)
     sobel_x_filter(state_grid)
 
-
-def dense(input_vector: ti.template(), output_length: ti.i32):
+@ti.func
+def dense(input_vector: ti.template(), output_length: ti.template()):
+    output_vector = ti.Vector.zero(ti.f32, output_length)
     # convert input_vector to a 1D vector
-    for i in range(output_length):
-        result = ti.Vector.zero(ti.f32, 1)
-        for j in range(input_vector.n):
+    for i in ti.static(range(output_length)):
+        result = 0.
+        for j in ti.static(range(input_vector.n)):
             result += input_vector[j] * ti.random()
-        input_vector[i] = result
-    return input_vector
+        output_vector[i] = result
+    return output_vector
 
 
 # simulate a relu activation
+@ti.func
 def relu(input_vector: ti.template()):
-    for i in range(input_vector.n):
+    for i in ti.static(range(input_vector.n)):
         if input_vector[i] < 0:
             input_vector[i] = 0
     return input_vector
 
-
+@ti.func
 def update_cell(cell: ti.template()):
     # simulate a dense neural network
     x = dense(cell, 128)
     x = relu(x)
-    x = dense(x, 16)
-    return x
+    y = dense(x, 16)
+    return y
 
 
 @ti.kernel
@@ -63,6 +65,8 @@ def update(state_grid: ti.template()):
 
 # read image into state_grid
 img = ti.tools.imread('./res/example.jpg')
+# resize image
+img = ti.tools.imresize(img, w=64, h=64)
 state_grid = ti.Vector.field(n=16, dtype=ti.f32, shape=(img.shape[0], img.shape[1]))
 state_grid.from_numpy(img)
 percieve(state_grid)
